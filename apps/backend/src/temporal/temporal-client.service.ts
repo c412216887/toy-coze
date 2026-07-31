@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, ServiceUnavailableException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Client, Connection } from '@temporalio/client'
 import { runWorkflowExecution, type WorkflowRunInput } from './workflows/workflow-execution.workflow'
@@ -13,8 +13,12 @@ export class TemporalClientService {
     if (!this.client) {
       const address = this.config.get<string>('app.temporalAddress') ?? 'localhost:7233'
       const namespace = this.config.get<string>('app.temporalNamespace') ?? 'default'
-      const connection = await Connection.connect({ address })
-      this.client = new Client({ connection, namespace })
+      try {
+        const connection = await Connection.connect({ address })
+        this.client = new Client({ connection, namespace })
+      } catch {
+        throw new ServiceUnavailableException('Temporal 服务不可用，请先启动 Temporal')
+      }
     }
     return this.client
   }

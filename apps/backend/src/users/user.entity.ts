@@ -5,19 +5,19 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string
 
-  @Column({ length: 64, unique: true })
+  @Column({ type: 'varchar', length: 64, unique: true })
   username: string
 
-  @Column({ length: 255, unique: true })
+  @Column({ type: 'varchar', length: 255, unique: true })
   email: string
 
-  @Column({ name: 'hashed_password', length: 255, select: false })
+  @Column({ name: 'hashed_password', type: 'varchar', length: 255, select: false })
   hashedPassword: string
 
-  @Column({ name: 'is_active', default: true })
+  @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean
 
-  @Column({ name: 'is_superuser', default: false })
+  @Column({ name: 'is_superuser', type: 'boolean', default: false })
   isSuperuser: boolean
 
   @CreateDateColumn({ name: 'created_at' })

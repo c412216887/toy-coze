@@ -6,14 +6,14 @@ export class Workflow {
   @PrimaryGeneratedColumn('uuid')
   id: string
 
-  @Column({ name: 'user_id' })
+  @Column({ name: 'user_id', type: 'varchar' })
   userId: string
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'user_id' })
   user: User
 
-  @Column({ length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   name: string
 
   @Column({ type: 'text', nullable: true })
@@ -22,10 +22,10 @@ export class Workflow {
   @Column({ name: 'graph_data', type: 'jsonb', default: {} })
   graphData: Record<string, unknown>
 
-  @Column({ length: 32, default: 'draft' })
+  @Column({ type: 'varchar', length: 32, default: 'draft' })
   status: string
 
-  @Column({ default: 1 })
+  @Column({ type: 'int', default: 1 })
   version: number
 
   @OneToMany(() => WorkflowRun, run => run.workflow)
@@ -43,20 +43,20 @@ export class WorkflowRun {
   @PrimaryGeneratedColumn('uuid')
   id: string
 
-  @Column({ name: 'workflow_id' })
+  @Column({ name: 'workflow_id', type: 'varchar' })
   workflowId: string
 
   @ManyToOne(() => Workflow, wf => wf.runs)
   @JoinColumn({ name: 'workflow_id' })
   workflow: Workflow
 
-  @Column({ name: 'user_id' })
+  @Column({ name: 'user_id', type: 'varchar' })
   userId: string
 
-  @Column({ length: 32, default: 'pending' })
+  @Column({ type: 'varchar', length: 32, default: 'pending' })
   status: string
 
-  @Column({ name: 'temporal_run_id', length: 255, nullable: true })
+  @Column({ name: 'temporal_run_id', type: 'varchar', length: 255, nullable: true })
   temporalRunId: string | null
 
   @Column({ type: 'jsonb', nullable: true })
@@ -71,7 +71,7 @@ export class WorkflowRun {
   @Column({ name: 'elapsed_ms', type: 'int', nullable: true })
   elapsedMs: number | null
 
-  @Column({ name: 'total_tokens', default: 0 })
+  @Column({ name: 'total_tokens', type: 'int', default: 0 })
   totalTokens: number
 
   @Column({ name: 'finished_at', type: 'timestamptz', nullable: true })
