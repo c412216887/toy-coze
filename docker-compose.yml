@@ -1,0 +1,59 @@
+services:
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: coze-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: coze
+      POSTGRES_PASSWORD: coze123
+      POSTGRES_DB: coze_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - coze-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coze -d coze_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  temporal:
+    image: temporalio/auto-setup:1.22.4
+    container_name: coze-temporal
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: coze
+      POSTGRES_PWD: coze123
+      POSTGRES_SEEDS: postgres
+    ports:
+      - "7233:7233"
+    networks:
+      - coze-net
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    container_name: coze-temporal-ui
+    restart: unless-stopped
+    depends_on:
+      - temporal
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports:
+      - "8088:8080"
+    networks:
+      - coze-net
+
+volumes:
+  postgres_data:
+
+networks:
+  coze-net:
+    driver: bridge

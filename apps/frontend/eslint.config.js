@@ -30,6 +30,6 @@ export default [
     }
   },
   {
-    ignores: ['node_modules/**', 'dist/**', 'public/**']
+    ignores: ['node_modules/**', 'dist/**', 'public/**', 'apps/knowledge-service/**']
   }
 ]

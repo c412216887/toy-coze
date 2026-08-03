@@ -1,37 +1,43 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm'
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 @Entity('t_agent')
 export class Agent {
   @PrimaryGeneratedColumn('uuid')
-  id: string
+  id!: string;
 
   @Column({ name: 'user_id', type: 'varchar' })
-  userId: string
+  userId!: string;
 
   @Column({ type: 'varchar', length: 255 })
-  name: string
+  name!: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string | null
+  description!: string | null;
 
   @Column({ name: 'system_prompt', type: 'text', nullable: true })
-  systemPrompt: string | null
+  systemPrompt!: string | null;
 
   @Column({ name: 'model_id', type: 'varchar', length: 128, default: 'gpt-4o' })
-  modelId: string
+  modelId!: string;
 
   @Column({ name: 'model_config', type: 'jsonb', default: {} })
-  modelConfig: Record<string, unknown>
+  modelConfig!: Record<string, unknown>;
 
   @Column({ type: 'jsonb', default: [] })
-  tools: unknown[]
+  tools!: unknown[];
 
   @Column({ name: 'is_active', type: 'boolean', default: true })
-  isActive: boolean
+  isActive!: boolean;
 
   @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date
+  createdAt!: Date;
 
   @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date
+  updatedAt!: Date;
 }

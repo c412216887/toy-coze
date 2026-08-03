@@ -17,33 +17,40 @@
 │            NestJS 主后端（端口 3000）            │
 │  · 用户认证（JWT）                              │
 │  · 工作流 / Agent / 模型 CRUD                   │
-│  · Temporal Worker（工作流调度）                │
-│  · LangGraph 节点执行（@langchain/langgraph）   │
 │  · SSE 流式输出                                 │
 └──────────────┬──────────────────────────────────┘
                │                    │
                ▼                    ▼
 ┌──────────────────────┐  ┌────────────────────────┐
-│   Temporal Cluster   │  │  Python 知识库微服务   │
-│   （持久化工作流）   │  │    （端口 8001）        │
-│   · 断点续跑         │  │  · PDF / Word / MD 解析 │
-│   · 节点重试         │  │  · 向量化（OpenAI）     │
-│   · 执行历史可视化   │  │  · pgvector RAG 检索    │
-└──────────────────────┘  └────────────────────────┘
-               │                    │
-               └──────────┬─────────┘
-                           ▼
-              ┌─────────────────────────┐
-              │      PostgreSQL         │
-              │  · t_user               │
-              │  · t_workflow           │
-              │  · t_workflow_run       │
-              │  · t_agent              │
-              │  · t_model_provider     │
-              │  · ks_knowledge_base    │
-              │  · ks_document          │
-              │  · ks_document_chunk    │
-              └─────────────────────────┘
+│   Temporal Worker    │  │  Python 知识库微服务   │
+│   （独立进程）       │  │    （端口 8001）        │
+│   · 工作流持久化调度 │  │  · PDF / Word / MD 解析 │
+│   · LangGraph 编排   │  │  · 向量化（OpenAI）     │
+│   · 断点续跑 / 重试  │  │  · pgvector RAG 检索    │
+└──────────┬───────────┘  └────────────────────────┘
+           │                         │
+           ▼                         │
+┌──────────────────────┐             │
+│   Temporal Server    │             │
+│   （Docker，7233）   │             │
+└──────────────────────┘             │
+           │                         │
+           └──────────┬──────────────┘
+                      ▼
+         ┌─────────────────────────┐
+         │      PostgreSQL         │
+         │  · coze_db（业务库）    │
+         │    t_user               │
+         │    t_workflow           │
+         │    t_workflow_run       │
+         │    t_agent              │
+         │    t_model_provider     │
+         │    ks_knowledge_base    │
+         │    ks_document          │
+         │    ks_document_chunk    │
+         │  · temporal（调度库）   │
+         │  · temporal_visibility  │
+         └─────────────────────────┘
 ```
 
 ---
@@ -54,8 +61,11 @@
 coze/
 ├── apps/
 │   ├── frontend/           # Vue 3 + Vite + TypeScript + Vue Flow
-│   ├── backend/            # NestJS + Temporal + LangGraph
+│   ├── backend/            # NestJS 主后端 + Temporal Worker（独立进程）
 │   └── knowledge-service/  # Python FastAPI + pgvector（RAG 微服务）
+├── infra/
+│   └── init-db.sql         # PostgreSQL 初始化脚本（自动建库、启用 pgvector）
+├── docker-compose.yml      # 基础设施一键启动
 ├── pnpm-workspace.yaml
 └── package.json
 ```
@@ -107,10 +117,15 @@ src/
 ├── models/         # 模型供应商管理
 ├── knowledge/      # 知识库 HTTP 代理客户端
 ├── temporal/
-│   ├── workflows/  # Temporal Workflow 定义（LangGraph 编排）
-│   └── activities/ # Temporal Activity（LLM 节点执行）
+│   ├── worker.ts           # Temporal Worker 独立入口（单独进程运行）
+│   ├── workflows/          # Temporal Workflow 定义（LangGraph 编排）
+│   ├── activities/         # Temporal Activity（LLM 节点执行）
+│   ├── temporal-worker.service.ts
+│   └── temporal-client.service.ts
 └── config/         # 环境变量配置
 ```
+
+> **注意**：Temporal Worker 运行在独立进程中（`pnpm dev:worker`），不内嵌于 NestJS 主进程。这是 Temporal 的架构要求——Workflow 代码运行在独立 V8 沙箱中，不能与普通 Node.js 代码混用。
 
 ### apps/knowledge-service
 
@@ -143,45 +158,50 @@ src/
 - Node.js 18+
 - pnpm 8+
 - Python 3.12
-- PostgreSQL 15+（需启用 pgvector 扩展）
-- Docker（运行 Temporal）
+- Docker Desktop
 
-### 1. 启动基础设施
+### 1. 启动基础设施（一键）
 
 ```bash
-# PostgreSQL 启用 pgvector
-psql -U postgres -c "CREATE DATABASE coze_db;"
-psql -U postgres -d coze_db -c "CREATE EXTENSION IF NOT EXISTS vector;"
-
-# Temporal
-docker run -d -p 7233:7233 temporalio/auto-setup:latest
+cd /path/to/coze
+docker compose up -d
 ```
+
+启动以下服务：
+
+| 服务 | 端口 | 说明 |
+|------|------|------|
+| PostgreSQL + pgvector | `5432` | 自动建库、启用 pgvector 扩展 |
+| Temporal Server | `7233` | gRPC，Worker 和 Client 连接 |
+| Temporal Web UI | `8088` | 浏览器查看工作流执行历史 |
 
 ### 2. 前端
 
 ```bash
-cd apps/frontend
-pnpm install
-pnpm dev          # http://localhost:5173
+pnpm dev:frontend     # http://localhost:5173
 ```
 
 ### 3. NestJS 后端
 
 ```bash
 cd apps/backend
-cp .env.example .env   # 填写 OPENAI_API_KEY 等
-pnpm install
-pnpm start:dev    # http://localhost:3000
-# Swagger 文档：http://localhost:3000/docs
+cp .env.example .env  # 填写 OPENAI_API_KEY 等
+cd ../..
+pnpm dev:backend      # http://localhost:3000
+                      # Swagger 文档：http://localhost:3000/docs
 ```
 
-### 4. 知识库微服务
+### 4. Temporal Worker（独立进程）
+
+```bash
+pnpm dev:worker       # 需要 Temporal Server 已启动
+```
+
+### 5. 知识库微服务
 
 ```bash
 cd apps/knowledge-service
-cp .env.example .env   # 填写 OPENAI_API_KEY
-python3.12 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+cp .env.example .env  # 填写 OPENAI_API_KEY
 .venv/bin/alembic upgrade head
 .venv/bin/uvicorn app.main:app --port 8001 --reload
 ```
@@ -201,6 +221,7 @@ python3.12 -m venv .venv
 | `DEFAULT_LLM_MODEL` | 默认模型 | `gpt-4o` |
 | `KNOWLEDGE_SERVICE_URL` | 知识库微服务地址 | `http://localhost:8001` |
 | `TEMPORAL_ADDRESS` | Temporal 服务地址 | `localhost:7233` |
+| `TEMPORAL_NAMESPACE` | Temporal 命名空间 | `default` |
 
 ### apps/knowledge-service/.env
 
@@ -213,14 +234,15 @@ python3.12 -m venv .venv
 
 ---
 
-## 数据库表说明
+## 数据库说明
 
-所有表共用同一个 PostgreSQL 库，按前缀区分归属：
+所有库运行在同一个 PostgreSQL 实例，按用途分库：
 
-| 前缀 | 归属服务 | 说明 |
-|------|---------|------|
-| `t_` | NestJS 主后端 | 用户、工作流、Agent、模型供应商 |
-| `ks_` | 知识库微服务 | 知识库、文档、文档分块（含向量列）|
+| 库名 | 用途 |
+|------|------|
+| `coze_db` | 业务数据，`t_` 前缀（NestJS）+ `ks_` 前缀（知识库服务）|
+| `temporal` | Temporal 调度持久化 |
+| `temporal_visibility` | Temporal 工作流查询索引 |
 
 ---
 

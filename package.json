@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "scripts": {
     "dev:frontend": "pnpm --filter frontend dev",
-    "dev:backend": "pnpm --filter backend start",
+    "dev:backend": "pnpm --filter backend start:dev",
+    "dev:worker": "pnpm --filter backend worker:dev",
     "build:frontend": "pnpm --filter frontend build",
     "build:backend": "pnpm --filter backend build"
   },

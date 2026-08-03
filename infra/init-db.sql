@@ -1,0 +1,3 @@
+CREATE DATABASE temporal;
+CREATE DATABASE temporal_visibility;
+CREATE EXTENSION IF NOT EXISTS vector;
