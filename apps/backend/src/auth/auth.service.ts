@@ -1,7 +1,7 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common'
-import { JwtService } from '@nestjs/jwt'
-import * as bcrypt from 'bcrypt'
-import { UsersService } from '../users/users.service'
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class AuthService {
@@ -11,16 +11,16 @@ export class AuthService {
   ) {}
 
   async validateUser(username: string, password: string) {
-    const user = await this.usersService.findByUsername(username)
-    if (!user) throw new UnauthorizedException('用户名或密码错误')
-    const valid = await bcrypt.compare(password, user.hashedPassword)
-    if (!valid) throw new UnauthorizedException('用户名或密码错误')
-    return user
+    const user = await this.usersService.findByUsername(username);
+    if (!user) throw new UnauthorizedException('用户名或密码错误');
+    const valid = await bcrypt.compare(password, user.hashedPassword);
+    if (!valid) throw new UnauthorizedException('用户名或密码错误');
+    return user;
   }
 
-  async login(username: string, password: string) {
-    const user = await this.validateUser(username, password)
-    const payload = { sub: user.id, username: user.username }
-    return { accessToken: this.jwtService.sign(payload), tokenType: 'bearer' }
+  async login(email: string, password: string) {
+    const user = await this.validateUser(email, password);
+    const payload = { sub: user.id, username: user.username };
+    return { accessToken: this.jwtService.sign(payload), tokenType: 'bearer' };
   }
 }
