@@ -1,38 +1,37 @@
-import { IsString, IsOptional, IsObject } from 'class-validator'
+import { IsString, IsOptional, IsObject } from 'class-validator';
 
 export class CreateWorkflowDto {
   @IsString()
-  name: string
+  name!: string;
 
   @IsOptional()
   @IsString()
-  description?: string
+  description?: string;
 
   @IsOptional()
   @IsObject()
-  graphData?: Record<string, unknown>
+  graphData?: Record<string, unknown>;
 }
 
 export class UpdateWorkflowDto {
   @IsOptional()
   @IsString()
-  name?: string
+  name?: string;
 
   @IsOptional()
   @IsString()
-  description?: string
+  description?: string;
 
   @IsOptional()
   @IsObject()
-  graphData?: Record<string, unknown>
+  graphData?: Record<string, unknown>;
 
   @IsOptional()
   @IsString()
-  status?: string
+  status?: string;
 }
 
 export class RunWorkflowDto {
-  @IsOptional()
-  @IsObject()
-  inputs?: Record<string, unknown>
+  @IsString()
+  input!: string;
 }

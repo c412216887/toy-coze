@@ -13,4 +13,6 @@ export default registerAs('app', () => ({
   defaultLlmModel: process.env.DEFAULT_LLM_MODEL ?? 'gpt-4o',
   temporalAddress: process.env.TEMPORAL_ADDRESS ?? 'localhost:7233',
   temporalNamespace: process.env.TEMPORAL_NAMESPACE ?? 'default',
+  internalSecret: process.env.INTERNAL_SECRET ?? 'internal-dev-secret',
+  internalBaseUrl: process.env.INTERNAL_BASE_URL ?? 'http://localhost:3000',
 }))

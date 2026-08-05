@@ -32,7 +32,9 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string): Promise<User | nulll> {
-    const user = await this.userRepo.fin;
+  async findByEmail(email: string): Promise<User | null> {
+    const user = await this.userRepo.findByEmail(email);
+    if (!user) throw new NotFoundException('用户不存在');
+    return user;
   }
 }

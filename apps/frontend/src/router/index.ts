@@ -10,6 +10,11 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true }
   },
   {
+    path: '/workflow/:id/edit',
+    name: 'workflow-edit',
+    component: () => import('@/pages/workflow/WorkflowEditorPage.vue')
+  },
+  {
     path: '/',
     component: () => import('@/layouts/DefaultLayout.vue'),
     children: [
@@ -22,11 +27,6 @@ const routes: RouteRecordRaw[] = [
         path: 'workflow',
         name: 'workflow',
         component: () => import('@/pages/workflow/WorkflowPage.vue')
-      },
-      {
-        path: 'workflow/:id/edit',
-        name: 'workflow-edit',
-        component: () => import('@/pages/workflow/WorkflowEditorPage.vue')
       },
       {
         path: 'agent',

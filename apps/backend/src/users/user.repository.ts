@@ -34,7 +34,12 @@ export class UserRepository {
 
   async findByEmail(email: string): Promise<User | null> {
     const rows = await this.dataSource.query<User[]>(
-      `select * from t_user where email = $1`,
+      `SELECT id, username, email, hashed_password AS "hashedPassword",
+              is_active AS "isActive", is_superuser AS "isSuperuser",
+              created_at AS "createdAt", updated_at AS "updatedAt"
+       FROM t_user
+       WHERE email = $1
+       LIMIT 1`,
       [email],
     );
     return rows[0] ?? null;

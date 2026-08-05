@@ -1,4 +1,4 @@
-import axios from 'axios'
+import request from './request'
 
 export interface LoginPayload {
   email: string
@@ -6,10 +6,10 @@ export interface LoginPayload {
 }
 
 export interface LoginResponse {
-  access_token: string
+  accessToken: string
 }
 
 export async function login(payload: LoginPayload): Promise<LoginResponse> {
-  const res = await axios.post<LoginResponse>('/api/v1/auth/login', payload)
+  const res = await request.post<LoginResponse>('/api/v1/auth/login', payload)
   return res.data
 }

@@ -12,8 +12,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(payload: LoginPayload): Promise<void> {
     const res = await loginApi(payload)
-    token.value = res.access_token
-    localStorage.setItem(TOKEN_KEY, res.access_token)
+    console.log('====', res)
+    token.value = res.accessToken
+    localStorage.setItem(TOKEN_KEY, res.accessToken)
   }
 
   function logout(): void {
