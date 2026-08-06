@@ -1,5 +1,5 @@
-import { ChatOpenAI } from '@langchain/openai'
-import { HumanMessage, SystemMessage } from '@langchain/core/messages'
+import { createOpenAI } from '@ai-sdk/openai'
+import { streamText } from 'ai'
 
 const INTERNAL_BASE_URL = process.env.INTERNAL_BASE_URL ?? 'http://localhost:3000'
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET ?? 'internal-dev-secret'
@@ -40,39 +40,39 @@ export async function executeWorkflowNode(input: NodeExecutionInput): Promise<No
 }
 
 async function executeLlmNode(input: NodeExecutionInput): Promise<NodeExecutionOutput> {
-  const model = new ChatOpenAI({
-    model: (input.nodeData.model as string) ?? process.env.DEFAULT_LLM_MODEL ?? 'gpt-4o',
+  const openai = createOpenAI({
     apiKey: process.env.OPENAI_API_KEY,
-    configuration: { baseURL: process.env.OPENAI_BASE_URL },
-    temperature: (input.nodeData.temperature as number) ?? 0.7,
-    streaming: true,
+    baseURL: process.env.OPENAI_BASE_URL,
   })
 
+  const modelName = (input.nodeData.model as string) ?? process.env.DEFAULT_LLM_MODEL ?? 'gpt-4o'
+  const temperature = (input.nodeData.temperature as number) ?? 0.7
   const systemPrompt = renderTemplate(
     (input.nodeData.systemPrompt as string) ?? '',
     { ...input.inputs, ...input.previousOutputs },
   )
 
-  const messages = [
-    ...(systemPrompt ? [new SystemMessage(systemPrompt)] : []),
-    new HumanMessage(String(input.inputs.input ?? '')),
+  const messages: Array<{ role: 'system' | 'user'; content: string }> = [
+    ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
+    { role: 'user', content: String(input.inputs.input ?? '') },
   ]
 
+  const { textStream, usage } = streamText({
+    model: openai(modelName, { structuredOutputs: false }),
+    messages,
+    temperature,
+  })
+
   let fullText = ''
-  let tokensUsed = 0
 
-  const stream = await model.stream(messages)
-
-  for await (const chunk of stream) {
-    const token = typeof chunk.content === 'string' ? chunk.content : ''
-    if (token) {
-      fullText += token
-      await pushToken(input.runId, 'token', { content: token })
-    }
-    tokensUsed += chunk.usage_metadata?.total_tokens ?? 0
+  for await (const token of textStream) {
+    fullText += token
+    await pushToken(input.runId, 'token', { content: token })
   }
 
-  return { nodeId: input.nodeId, result: fullText, tokensUsed }
+  const { totalTokens } = await usage
+
+  return { nodeId: input.nodeId, result: fullText, tokensUsed: totalTokens }
 }
 
 function renderTemplate(template: string, vars: Record<string, unknown>): string {

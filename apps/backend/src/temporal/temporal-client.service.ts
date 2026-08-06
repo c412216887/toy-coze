@@ -1,7 +1,7 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Client, Connection } from '@temporalio/client'
-import { runWorkflowExecution, type WorkflowRunInput } from './workflows/workflow-execution.workflow'
+import type { WorkflowRunInput } from './temporal.types'
 
 @Injectable()
 export class TemporalClientService {
@@ -25,7 +25,7 @@ export class TemporalClientService {
 
   async startWorkflowRun(input: WorkflowRunInput): Promise<string> {
     const client = await this.getClient()
-    const handle = await client.workflow.start(runWorkflowExecution, {
+    const handle = await client.workflow.start('runWorkflowExecution', {
       taskQueue: 'workflow-execution',
       workflowId: `wf-run-${input.runId}`,
       args: [input],

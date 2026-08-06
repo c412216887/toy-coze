@@ -87,7 +87,12 @@ export class WorkflowsController {
     return fromEvent(this.eventEmitter, `run.${runId}`).pipe(
       takeUntil(done$),
       map((payload: unknown) => {
-        const data = payload as { type: 'token' | 'done' | 'error'; content?: string; message?: string; outputs?: unknown }
+        const data = payload as {
+          type: 'token' | 'done' | 'error'
+          content?: string
+          message?: string
+          outputs?: unknown
+        }
 
         if (data.type === 'done' || data.type === 'error') {
           done$.next()
@@ -122,7 +127,12 @@ export class InternalController {
   push(
     @Param('runId') runId: string,
     @Headers('x-internal-secret') secret: string,
-    @Body() body: { type: 'token' | 'done' | 'error'; content?: string; message?: string; outputs?: unknown },
+    @Body() body: {
+      type: 'token' | 'done' | 'error'
+      content?: string
+      message?: string
+      outputs?: unknown
+    },
   ) {
     if (secret !== this.config.get<string>('app.internalSecret')) {
       throw new UnauthorizedException()

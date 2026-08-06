@@ -76,6 +76,113 @@ export async function runWorkflow(id: string, input: string): Promise<RunWorkflo
   return res.data
 }
 
-export function createRunStream(id: string, runId: string): EventSource {
-  return new EventSource(`/api/v1/workflows/${id}/runs/${runId}/stream`)
+export type SseEvent =
+  | { type: 'token'; content: string }
+  | { type: 'done'; status: string; runId: string }
+  | { type: 'error'; message: string }
+
+const SSE_MAX_RETRIES = 3
+const SSE_RETRY_DELAY_MS = 2000
+
+export async function* streamWorkflowRun(
+  id: string,
+  runId: string,
+  signal?: AbortSignal
+): AsyncGenerator<SseEvent> {
+  const jwt = localStorage.getItem('coze_token')
+  const headers: Record<string, string> = {
+    Accept: 'text/event-stream',
+    ...(jwt ? { Authorization: `Bearer ${jwt}` } : {})
+  }
+
+  let retries = 0
+
+  while (true) {
+    if (signal?.aborted) return
+
+    let res: Response
+    try {
+      res = await fetch(`/api/v1/workflows/${id}/runs/${runId}/stream`, { headers, signal })
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return
+      if (retries >= SSE_MAX_RETRIES) throw err
+      retries++
+      await delay(SSE_RETRY_DELAY_MS, signal)
+      continue
+    }
+
+    if (!res.ok || !res.body) {
+      throw new Error(`SSE 连接失败：${res.status}`)
+    }
+
+    retries = 0
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buf = ''
+    let networkDrop = false
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) {
+          networkDrop = true
+          break
+        }
+
+        buf += decoder.decode(value, { stream: true })
+        const blocks = buf.split('\n\n')
+        buf = blocks.pop() ?? ''
+
+        for (const block of blocks) {
+          let eventType = 'message'
+          let dataLine = ''
+
+          for (const line of block.split('\n')) {
+            if (line.startsWith('event:')) {
+              eventType = line.slice(6).trim()
+            } else if (line.startsWith('data:')) {
+              dataLine = line.slice(5).trim()
+            }
+          }
+
+          if (!dataLine) continue
+
+          try {
+            const parsed = JSON.parse(dataLine) as Record<string, unknown>
+            if (eventType === 'token') {
+              yield { type: 'token', content: parsed.content as string }
+            } else if (eventType === 'done') {
+              yield { type: 'done', status: parsed.status as string, runId: parsed.runId as string }
+              return
+            } else if (eventType === 'error') {
+              yield { type: 'error', message: parsed.message as string }
+              return
+            }
+          } catch {
+          }
+        }
+      }
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return
+      networkDrop = true
+    } finally {
+      reader.cancel()
+    }
+
+    if (!networkDrop) return
+    if (retries >= SSE_MAX_RETRIES) throw new Error('SSE 连接多次中断，已停止重试')
+    retries++
+    await delay(SSE_RETRY_DELAY_MS, signal)
+  }
+}
+
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms)
+    signal?.addEventListener('abort', () => {
+      clearTimeout(timer)
+      reject(Object.assign(new Error('AbortError'), { name: 'AbortError' }))
+    }, { once: true })
+  })
 }

@@ -224,7 +224,7 @@ import '@vue-flow/minimap/dist/style.css'
 import StartNode from '@/components/nodes/StartNode.vue'
 import LlmNode from '@/components/nodes/LlmNode.vue'
 import EndNode from '@/components/nodes/EndNode.vue'
-import { getWorkflow, updateWorkflow, runWorkflow, createRunStream } from '@/api/workflow'
+import { getWorkflow, updateWorkflow, runWorkflow, streamWorkflowRun } from '@/api/workflow'
 import type { WorkflowDefinition, WorkflowNodeDef, WorkflowEdgeDef } from '@/api/workflow'
 
 const route = useRoute()
@@ -397,7 +397,7 @@ const runDrawer = reactive<{
 })
 
 const outputEl = ref<HTMLElement | null>(null)
-let currentEventSource: EventSource | null = null
+let currentAbortController: AbortController | null = null
 
 function openRunDrawer() {
   runDrawer.visible = true
@@ -407,16 +407,16 @@ function openRunDrawer() {
 }
 
 function closeRunDrawer() {
-  currentEventSource?.close()
-  currentEventSource = null
+  currentAbortController?.abort()
+  currentAbortController = null
   runDrawer.visible = false
 }
 
 async function startRun() {
   if (!runDrawer.input.trim()) return
 
-  currentEventSource?.close()
-  currentEventSource = null
+  currentAbortController?.abort()
+  currentAbortController = null
   runDrawer.status = 'pending'
   runDrawer.output = ''
   runDrawer.errorMsg = ''
@@ -431,42 +431,35 @@ async function startRun() {
     return
   }
 
-  const es = createRunStream(workflowId, runId)
-  currentEventSource = es
+  const ac = new AbortController()
+  currentAbortController = ac
   runDrawer.status = 'streaming'
 
-  es.addEventListener('token', (e: MessageEvent) => {
-    try {
-      const data = JSON.parse(e.data) as { content: string }
-      runDrawer.output += data.content
-      nextTick(() => {
-        if (outputEl.value) outputEl.value.scrollTop = outputEl.value.scrollHeight
-      })
-    } catch {}
-  })
-
-  es.addEventListener('done', () => {
-    runDrawer.status = 'completed'
-    es.close()
-    currentEventSource = null
-  })
-
-  es.addEventListener('error', (e: MessageEvent) => {
-    try {
-      const data = JSON.parse(e.data) as { message: string }
-      runDrawer.status = 'failed'
-      runDrawer.errorMsg = data.message
-    } catch {
-      runDrawer.status = 'failed'
-      runDrawer.errorMsg = '连接异常，请重试'
+  try {
+    for await (const event of streamWorkflowRun(workflowId, runId, ac.signal)) {
+      if (event.type === 'token') {
+        runDrawer.output += event.content
+        nextTick(() => {
+          if (outputEl.value) outputEl.value.scrollTop = outputEl.value.scrollHeight
+        })
+      } else if (event.type === 'done') {
+        runDrawer.status = 'completed'
+      } else if (event.type === 'error') {
+        runDrawer.status = 'failed'
+        runDrawer.errorMsg = event.message
+      }
     }
-    es.close()
-    currentEventSource = null
-  })
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') return
+    runDrawer.status = 'failed'
+    runDrawer.errorMsg = '连接异常，请重试'
+  } finally {
+    currentAbortController = null
+  }
 }
 
 onUnmounted(() => {
-  currentEventSource?.close()
+  currentAbortController?.abort()
 })
 </script>
 
