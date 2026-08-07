@@ -1,5 +1,5 @@
 import { proxyActivities } from '@temporalio/workflow'
-import type * as activities from '../activities/workflow.activities'
+import type * as activities from '../activities/workflow.activities.js'
 
 const { executeWorkflowNode, finalizeWorkflowRun } = proxyActivities<typeof activities>({
   startToCloseTimeout: '10 minutes',

@@ -125,8 +125,10 @@ export async function* streamWorkflowRun(
     try {
       while (true) {
         const { done, value } = await reader.read()
+
         if (done) {
-          networkDrop = true
+          const event = parseSseBlock(buf.trim())
+          if (event) yield event
           break
         }
 
@@ -135,32 +137,10 @@ export async function* streamWorkflowRun(
         buf = blocks.pop() ?? ''
 
         for (const block of blocks) {
-          let eventType = 'message'
-          let dataLine = ''
-
-          for (const line of block.split('\n')) {
-            if (line.startsWith('event:')) {
-              eventType = line.slice(6).trim()
-            } else if (line.startsWith('data:')) {
-              dataLine = line.slice(5).trim()
-            }
-          }
-
-          if (!dataLine) continue
-
-          try {
-            const parsed = JSON.parse(dataLine) as Record<string, unknown>
-            if (eventType === 'token') {
-              yield { type: 'token', content: parsed.content as string }
-            } else if (eventType === 'done') {
-              yield { type: 'done', status: parsed.status as string, runId: parsed.runId as string }
-              return
-            } else if (eventType === 'error') {
-              yield { type: 'error', message: parsed.message as string }
-              return
-            }
-          } catch {
-          }
+          const event = parseSseBlock(block)
+          if (!event) continue
+          yield event
+          if (event.type === 'done' || event.type === 'error') return
         }
       }
     } catch (err) {
@@ -175,6 +155,24 @@ export async function* streamWorkflowRun(
     retries++
     await delay(SSE_RETRY_DELAY_MS, signal)
   }
+}
+
+function parseSseBlock(block: string): SseEvent | null {
+  if (!block) return null
+  let dataLine = ''
+  for (const line of block.split('\n')) {
+    if (line.startsWith('data:')) dataLine = line.slice(5).trim()
+  }
+  if (!dataLine) return null
+  try {
+    const outer = JSON.parse(dataLine) as Record<string, unknown>
+    const parsed = (outer.data ?? outer) as Record<string, unknown>
+    const type = parsed.type as string
+    if (type === 'token') return { type: 'token', content: parsed.content as string }
+    if (type === 'done') return { type: 'done', status: parsed.status as string, runId: parsed.runId as string }
+    if (type === 'error') return { type: 'error', message: parsed.message as string }
+  } catch {}
+  return null
 }
 
 function delay(ms: number, signal?: AbortSignal): Promise<void> {

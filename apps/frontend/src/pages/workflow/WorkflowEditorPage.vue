@@ -54,12 +54,8 @@
 
         <template v-if="!panelCollapsed">
           <p class="node-panel__heading">节点</p>
-          <div class="node-panel__item" draggable="true" @dragstart="onDragStart($event, 'llmNode')">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <rect x="1" y="3" width="14" height="10" rx="2.5" stroke="#6366f1" stroke-width="1.5" />
-              <path d="M4.5 6.5h7M4.5 9.5h4.5" stroke="#6366f1" stroke-width="1.3" stroke-linecap="round" />
-            </svg>
-            <span>LLM 节点</span>
+          <div v-for="def in nodeRegistry.filter(d => d.draggable)" :key="def.type" class="node-panel__item" draggable="true" @dragstart="onDragStart($event, def.type)">
+            <span>{{ def.label }}</span>
           </div>
         </template>
       </aside>
@@ -94,62 +90,8 @@
             </button>
           </div>
 
-          <!-- 开始节点 -->
-          <div v-if="selectedNode.type === 'startNode'" class="config-panel__body">
-            <p class="config-panel__readonly">
-              用户输入：
-              <code>&#123;&#123;input&#125;&#125;</code>
-            </p>
-            <p class="config-panel__hint">开始节点无需配置，工作流运行时会要求用户填写输入内容。</p>
-          </div>
-
-          <!-- LLM 节点 -->
-          <div v-else-if="selectedNode.type === 'llmNode'" class="config-panel__body">
-            <div class="form-field">
-              <label class="form-field__label">节点名称</label>
-              <input v-model="selectedNode.data.label" class="form-field__input" type="text" placeholder="LLM 节点" @input="syncNodeData" />
-            </div>
-
-            <div class="form-field">
-              <label class="form-field__label">System Prompt</label>
-              <textarea v-model="selectedNode.data.systemPrompt" class="form-field__input form-field__textarea" placeholder="你是一个助手，请回答：{{input}}" rows="6" @input="syncNodeData" />
-              <p class="form-field__hint">
-                支持
-                <code>&#123;&#123;变量名&#125;&#125;</code>
-                引用上游输出
-              </p>
-            </div>
-
-            <div class="form-field">
-              <label class="form-field__label">模型</label>
-              <select v-model="selectedNode.data.model" class="form-field__input form-field__select" @change="syncNodeData">
-                <option value="gpt-4o">gpt-4o</option>
-              </select>
-            </div>
-
-            <div class="form-field">
-              <label class="form-field__label">
-                Temperature
-                <span class="form-field__value">{{ selectedNode.data.temperature ?? 0.7 }}</span>
-              </label>
-              <input v-model.number="selectedNode.data.temperature" class="form-field__range" type="range" min="0" max="2" step="0.1" @input="syncNodeData" />
-              <div class="form-field__range-labels">
-                <span>0</span>
-                <span>2</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 结束节点 -->
-          <div v-else-if="selectedNode.type === 'endNode'" class="config-panel__body">
-            <div class="form-field">
-              <label class="form-field__label">输出变量来源</label>
-              <select v-model="selectedNode.data.outputSource" class="form-field__input form-field__select" @change="syncNodeData">
-                <option value="">请选择上游节点</option>
-                <option v-for="n in llmNodes" :key="n.id" :value="n.id">{{ String(n.data.label) || 'LLM 节点' }}（{{ n.id }}）</option>
-              </select>
-            </div>
-          </div>
+          <!-- 配置面板内容由各节点文件自带 -->
+          <component :is="configPanelMap[selectedNode.type!]" :data="selectedNode.data" :llm-nodes="llmNodes" @update="syncNodeData" />
         </aside>
       </Transition>
     </div>
@@ -209,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted, markRaw, reactive } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
@@ -221,21 +163,13 @@ import '@vue-flow/core/dist/theme-default.css'
 import '@vue-flow/controls/dist/style.css'
 import '@vue-flow/minimap/dist/style.css'
 
-import StartNode from '@/components/nodes/StartNode.vue'
-import LlmNode from '@/components/nodes/LlmNode.vue'
-import EndNode from '@/components/nodes/EndNode.vue'
+import { nodeTypes, configPanelMap, nodeRegistry, nodeRegistryMap } from '@/components/nodes'
 import { getWorkflow, updateWorkflow, runWorkflow, streamWorkflowRun } from '@/api/workflow'
 import type { WorkflowDefinition, WorkflowNodeDef, WorkflowEdgeDef } from '@/api/workflow'
 
 const route = useRoute()
 const router = useRouter()
 const workflowId = route.params.id as string
-
-const nodeTypes = {
-  startNode: markRaw(StartNode),
-  llmNode: markRaw(LlmNode),
-  endNode: markRaw(EndNode)
-}
 
 const { project, onConnect, addEdges } = useVueFlow()
 onConnect(params => addEdges([params]))
@@ -252,9 +186,7 @@ const selectedNode = ref<Node | null>(null)
 const llmNodes = computed<Node[]>((): Node[] => nodes.value.filter((n: Node) => n.type === 'llmNode'))
 
 function miniMapColor(n: Node): string {
-  if (n.type === 'startNode') return '#86efac'
-  if (n.type === 'endNode') return '#fca5a5'
-  return '#c7d2fe'
+  return nodeRegistryMap[n.type ?? '']?.miniMapColor ?? '#e5e7eb'
 }
 
 onMounted(async () => {
@@ -325,9 +257,10 @@ function closePanel() {
   selectedNode.value = null
 }
 
-function syncNodeData() {
+function syncNodeData(newData?: Record<string, unknown>) {
   if (!selectedNode.value) return
-  nodes.value = nodes.value.map<Node>(n => (n.id === selectedNode.value!.id ? { ...n, data: { ...selectedNode.value!.data } } : n))
+  if (newData) selectedNode.value = { ...selectedNode.value, data: newData } as Node
+  nodes.value = nodes.value.map<Node>((n): Node => (n.id === selectedNode.value!.id ? { ...n, data: { ...selectedNode.value!.data } } : n))
 }
 
 let idCounter = 0
@@ -339,6 +272,9 @@ function onDrop(event: DragEvent) {
   const nodeType = event.dataTransfer?.getData('nodeType')
   if (!nodeType || !flowWrapper.value) return
 
+  const def = nodeRegistryMap[nodeType]
+  if (!def) return
+
   const bounds = flowWrapper.value.getBoundingClientRect()
   const position = project({
     x: event.clientX - bounds.left,
@@ -347,18 +283,7 @@ function onDrop(event: DragEvent) {
 
   idCounter++
   const id = `${nodeType}-${Date.now()}-${idCounter}`
-  const newNode: Node = {
-    id,
-    type: nodeType,
-    position,
-    data: {
-      label: 'LLM 节点',
-      systemPrompt: '',
-      model: 'gpt-4o',
-      temperature: 0.7
-    }
-  }
-  nodes.value.push(newNode)
+  nodes.value.push({ id, type: nodeType, position, data: def.defaultData() })
 }
 
 const editingTitle = ref(false)
@@ -697,123 +622,6 @@ onUnmounted(() => {
     &:hover {
       background: #f3f4f6;
       color: #374151;
-    }
-  }
-
-  &__body {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    padding: 16px;
-  }
-
-  &__readonly {
-    padding: 10px 12px;
-    font-size: 13px;
-    color: #374151;
-    background: #f9fafb;
-    border-radius: 8px;
-
-    code {
-      padding: 2px 5px;
-      font-size: 12px;
-      background: #e0e7ff;
-      border-radius: 4px;
-      color: #4338ca;
-    }
-  }
-
-  &__hint {
-    font-size: 12px;
-    color: #9ca3af;
-    line-height: 1.6;
-  }
-}
-
-/* 表单字段（复用编辑器内） */
-.form-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-
-  &__label {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 12px;
-    font-weight: 500;
-    color: #374151;
-  }
-
-  &__value {
-    font-weight: 400;
-    color: #6366f1;
-  }
-
-  &__input {
-    width: 100%;
-    padding: 8px 10px;
-    font-size: 13px;
-    color: #111827;
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 7px;
-    outline: none;
-    box-sizing: border-box;
-    transition:
-      border-color 0.15s,
-      box-shadow 0.15s;
-
-    &::placeholder {
-      color: #9ca3af;
-    }
-
-    &:focus {
-      background: #fff;
-      border-color: #6366f1;
-      box-shadow: 0 0 0 3px rgb(99 102 241 / 10%);
-    }
-  }
-
-  &__textarea {
-    resize: vertical;
-    min-height: 100px;
-    line-height: 1.5;
-    font-family: inherit;
-  }
-
-  &__select {
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%236b7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    padding-right: 28px;
-    cursor: pointer;
-  }
-
-  &__range {
-    width: 100%;
-    accent-color: #6366f1;
-    cursor: pointer;
-  }
-
-  &__range-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 10px;
-    color: #9ca3af;
-  }
-
-  &__hint {
-    font-size: 11px;
-    color: #9ca3af;
-
-    code {
-      padding: 1px 4px;
-      background: #eef2ff;
-      border-radius: 3px;
-      color: #4338ca;
-      font-size: 11px;
     }
   }
 }

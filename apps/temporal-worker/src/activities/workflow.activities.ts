@@ -1,15 +1,16 @@
 import { createOpenAI } from '@ai-sdk/openai'
 import { streamText } from 'ai'
 
-const INTERNAL_BASE_URL = process.env.INTERNAL_BASE_URL ?? 'http://localhost:3000'
-const INTERNAL_SECRET = process.env.INTERNAL_SECRET ?? 'internal-dev-secret'
+function getEnv(key: string, fallback: string): string {
+  return process.env[key] ?? fallback
+}
 
 async function pushToken(runId: string, type: 'token' | 'done' | 'error', payload: Record<string, unknown>): Promise<void> {
-  await fetch(`${INTERNAL_BASE_URL}/api/v1/internal/runs/${runId}/push`, {
+  await fetch(`${getEnv('INTERNAL_BASE_URL', 'http://localhost:3000')}/api/v1/internal/runs/${runId}/push`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-internal-secret': INTERNAL_SECRET,
+      'x-internal-secret': getEnv('INTERNAL_SECRET', 'internal-dev-secret'),
     },
     body: JSON.stringify({ type, ...payload }),
   })
@@ -41,26 +42,25 @@ export async function executeWorkflowNode(input: NodeExecutionInput): Promise<No
 
 async function executeLlmNode(input: NodeExecutionInput): Promise<NodeExecutionOutput> {
   const openai = createOpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-    baseURL: process.env.OPENAI_BASE_URL,
+    apiKey: getEnv('OPENAI_API_KEY', ''),
+    baseURL: getEnv('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
   })
 
-  const modelName = (input.nodeData.model as string) ?? process.env.DEFAULT_LLM_MODEL ?? 'gpt-4o'
+  const modelName = (input.nodeData.model as string) ?? getEnv('DEFAULT_LLM_MODEL', 'gpt-4o')
   const temperature = (input.nodeData.temperature as number) ?? 0.7
   const systemPrompt = renderTemplate(
     (input.nodeData.systemPrompt as string) ?? '',
     { ...input.inputs, ...input.previousOutputs },
   )
 
-  const messages: Array<{ role: 'system' | 'user'; content: string }> = [
-    ...(systemPrompt ? [{ role: 'system' as const, content: systemPrompt }] : []),
-    { role: 'user', content: String(input.inputs.input ?? '') },
-  ]
-
   const { textStream, usage } = streamText({
-    model: openai(modelName, { structuredOutputs: false }),
-    messages,
+    model: openai(modelName),
+    system: systemPrompt || undefined,
+    messages: [{ role: 'user', content: String(input.inputs.input ?? '') }],
     temperature,
+    onError: (error) => {
+      console.error('[streamText error]', error)
+    },
   })
 
   let fullText = ''
@@ -72,7 +72,7 @@ async function executeLlmNode(input: NodeExecutionInput): Promise<NodeExecutionO
 
   const { totalTokens } = await usage
 
-  return { nodeId: input.nodeId, result: fullText, tokensUsed: totalTokens }
+  return { nodeId: input.nodeId, result: fullText, tokensUsed: totalTokens ?? 0 }
 }
 
 function renderTemplate(template: string, vars: Record<string, unknown>): string {

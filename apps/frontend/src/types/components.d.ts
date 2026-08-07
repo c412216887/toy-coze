@@ -12,10 +12,13 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     EndNode: typeof import('./../components/nodes/EndNode.vue')['default']
+    EndNodeConfig: typeof import('./../components/nodes/EndNodeConfig.vue')['default']
     HelloWorld: typeof import('./../components/HelloWorld.vue')['default']
     LlmNode: typeof import('./../components/nodes/LlmNode.vue')['default']
+    LlmNodeConfig: typeof import('./../components/nodes/LlmNodeConfig.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     StartNode: typeof import('./../components/nodes/StartNode.vue')['default']
+    StartNodeConfig: typeof import('./../components/nodes/StartNodeConfig.vue')['default']
   }
 }

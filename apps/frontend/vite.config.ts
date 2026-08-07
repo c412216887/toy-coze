@@ -26,8 +26,16 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
-        changeOrigin: true
-      }
-    }
-  }
+        changeOrigin: true,
+        configure(proxy, _options) {
+          proxy.on('proxyRes', (proxyRes) => {
+            if (proxyRes.headers['content-type']?.includes('text/event-stream')) {
+              proxyRes.headers['x-accel-buffering'] = 'no'
+              proxyRes.headers['cache-control'] = 'no-cache'
+            }
+          })
+        },
+      },
+    },
+  },
 })

@@ -1,7 +1,11 @@
 import "dotenv/config";
+import { fileURLToPath } from "node:url";
 import { NativeConnection, Worker } from "@temporalio/worker";
-import * as activities from "./activities/workflow.activities";
-import * as path from "node:path";
+import * as activities from "./activities/workflow.activities.js";
+
+const workflowsPath = fileURLToPath(
+  import.meta.resolve("./workflows/workflow-execution.workflow.ts"),
+);
 
 async function run() {
   const address = process.env.TEMPORAL_ADDRESS ?? "localhost:7233";
@@ -10,10 +14,7 @@ async function run() {
   const connection = await NativeConnection.connect({ address });
 
   const worker = await Worker.create({
-    workflowsPath: path.resolve(
-      __dirname,
-      "./workflows/workflow-execution.workflow.ts",
-    ),
+    workflowsPath,
     activities,
     taskQueue: "workflow-execution",
     connection,
