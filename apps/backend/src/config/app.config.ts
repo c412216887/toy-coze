@@ -15,4 +15,6 @@ export default registerAs('app', () => ({
   temporalNamespace: process.env.TEMPORAL_NAMESPACE ?? 'default',
   internalSecret: process.env.INTERNAL_SECRET ?? 'internal-dev-secret',
   internalBaseUrl: process.env.INTERNAL_BASE_URL ?? 'http://localhost:3000',
+  rsaPublicKey: (process.env.RSA_PUBLIC_KEY ?? '').replace(/\\n/g, '\n'),
+  rsaPrivateKey: (process.env.RSA_PRIVATE_KEY ?? '').replace(/\\n/g, '\n'),
 }))

@@ -13,12 +13,16 @@ export class UsersService {
   constructor(private readonly userRepo: UserRepository) {}
 
   async create(dto: CreateUserDto): Promise<User> {
-    const exists = await this.userRepo.existsByUsername(dto.username);
-    if (exists) throw new ConflictException('用户名已存在');
+    const [nameExists, emailExists] = await Promise.all([
+      this.userRepo.existsByUsername(dto.username),
+      this.userRepo.existsByEmail(dto.email),
+    ]);
+    if (nameExists) throw new ConflictException('用户名已存在');
+    if (emailExists) throw new ConflictException('邮箱已被注册');
     return this.userRepo.insert({
       username: dto.username,
       email: dto.email,
-      hashedPassword: await bcrypt.hash(dto.password, 10),
+      hashedPassword: await bcrypt.hash(dto.password, 12),
     });
   }
 
@@ -33,8 +37,6 @@ export class UsersService {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const user = await this.userRepo.findByEmail(email);
-    if (!user) throw new NotFoundException('用户不存在');
-    return user;
+    return this.userRepo.findByEmail(email);
   }
 }

@@ -10,6 +10,12 @@ const routes: RouteRecordRaw[] = [
     meta: { public: true }
   },
   {
+    path: '/register',
+    name: 'register',
+    component: () => import('@/pages/register/RegisterPage.vue'),
+    meta: { public: true }
+  },
+  {
     path: '/workflow/:id/edit',
     name: 'workflow-edit',
     component: () => import('@/pages/workflow/WorkflowEditorPage.vue')

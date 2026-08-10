@@ -53,6 +53,14 @@ export class UserRepository {
     return parseInt(rows[0].count, 10) > 0;
   }
 
+  async existsByEmail(email: string): Promise<boolean> {
+    const rows = await this.dataSource.query<{ count: string }[]>(
+      `SELECT COUNT(*) AS count FROM t_user WHERE email = $1`,
+      [email],
+    );
+    return parseInt(rows[0].count, 10) > 0;
+  }
+
   async insert(params: {
     username: string;
     email: string;
