@@ -1,12 +1,8 @@
-import { IsEmail, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-/** 密码强度规则：8-32 位，必须含大写、小写、数字、特殊字符各至少一个 */
-const PASSWORD_REGEX =
+export const PASSWORD_REGEX =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~])[A-Za-z\d!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?`~]{8,32}$/;
-
-const PASSWORD_MSG =
-  '密码须 8-32 位，包含大写字母、小写字母、数字、特殊字符各至少一个';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'alice' })
@@ -17,10 +13,6 @@ export class CreateUserDto {
   @IsEmail()
   email!: string;
 
-  /**
-   * RSA 加密后的密文（Base64），由前端用服务端公钥加密原始密码后传入。
-   * 后端解密后再做密码强度校验，不在 DTO 层做 Matches 校验（密文不符合明文规则）。
-   */
   @ApiProperty({ description: 'RSA 加密密码（Base64）' })
   @IsString()
   password!: string;
@@ -31,12 +23,24 @@ export class LoginDto {
   @IsEmail()
   email!: string;
 
-  /**
-   * RSA 加密后的密文（Base64）
-   */
   @ApiProperty({ description: 'RSA 加密密码（Base64）' })
   @IsString()
   password!: string;
 }
 
-export { PASSWORD_REGEX, PASSWORD_MSG };
+export class UpdateProfileDto {
+  @ApiProperty({ example: 'new_alice', required: false })
+  @IsString()
+  @IsOptional()
+  username?: string;
+}
+
+export class ChangePasswordDto {
+  @ApiProperty({ description: 'RSA 加密的当前密码（Base64）' })
+  @IsString()
+  oldPassword!: string;
+
+  @ApiProperty({ description: 'RSA 加密的新密码（Base64）' })
+  @IsString()
+  newPassword!: string;
+}

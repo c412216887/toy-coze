@@ -93,10 +93,12 @@ export class WorkflowsController {
   }
 
   @Sse(':id/runs/:runId/stream')
-  streamRun(
+  async streamRun(
     @Param('id') _id: string,
     @Param('runId') runId: string,
-  ): Observable<MessageEvent> {
+    @CurrentUser() user: User,
+  ): Promise<Observable<MessageEvent>> {
+    await this.workflowsService.assertRunBelongsToUser(runId, user.id)
     const subject = getOrCreateStream(runId)
 
     return subject.pipe(

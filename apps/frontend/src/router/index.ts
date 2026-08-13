@@ -25,7 +25,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/layouts/DefaultLayout.vue'),
     children: [
       {
-        path: '',
+        path: 'home',
         name: 'home',
         component: () => import('@/pages/home/HomePage.vue')
       },
@@ -48,6 +48,11 @@ const routes: RouteRecordRaw[] = [
         path: 'settings',
         name: 'settings',
         component: () => import('@/pages/settings/SettingsPage.vue')
+      },
+      {
+        path: 'profile',
+        name: 'profile',
+        component: () => import('@/pages/profile/ProfilePage.vue')
       }
     ]
   }
@@ -58,7 +63,7 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to) => {
+router.beforeEach(to => {
   const authStore = useAuthStore()
 
   if (to.name === 'login' && authStore.isLoggedIn) {

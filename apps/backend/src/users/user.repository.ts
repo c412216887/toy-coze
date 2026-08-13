@@ -11,9 +11,7 @@ export class UserRepository {
       `SELECT id, username, email, hashed_password AS "hashedPassword",
               is_active AS "isActive", is_superuser AS "isSuperuser",
               created_at AS "createdAt", updated_at AS "updatedAt"
-       FROM t_user
-       WHERE username = $1
-       LIMIT 1`,
+       FROM t_user WHERE username = $1 LIMIT 1`,
       [username],
     );
     return rows[0] ?? null;
@@ -24,9 +22,18 @@ export class UserRepository {
       `SELECT id, username, email,
               is_active AS "isActive", is_superuser AS "isSuperuser",
               created_at AS "createdAt", updated_at AS "updatedAt"
-       FROM t_user
-       WHERE id = $1
-       LIMIT 1`,
+       FROM t_user WHERE id = $1 LIMIT 1`,
+      [id],
+    );
+    return rows[0] ?? null;
+  }
+
+  async findByIdWithPassword(id: string): Promise<User | null> {
+    const rows = await this.dataSource.query<User[]>(
+      `SELECT id, username, email, hashed_password AS "hashedPassword",
+              is_active AS "isActive", is_superuser AS "isSuperuser",
+              created_at AS "createdAt", updated_at AS "updatedAt"
+       FROM t_user WHERE id = $1 LIMIT 1`,
       [id],
     );
     return rows[0] ?? null;
@@ -37,9 +44,7 @@ export class UserRepository {
       `SELECT id, username, email, hashed_password AS "hashedPassword",
               is_active AS "isActive", is_superuser AS "isSuperuser",
               created_at AS "createdAt", updated_at AS "updatedAt"
-       FROM t_user
-       WHERE email = $1
-       LIMIT 1`,
+       FROM t_user WHERE email = $1 LIMIT 1`,
       [email],
     );
     return rows[0] ?? null;
@@ -75,5 +80,24 @@ export class UserRepository {
       [params.username, params.email, params.hashedPassword],
     );
     return rows[0];
+  }
+
+  async updateUsername(id: string, username: string): Promise<User> {
+    const rows = await this.dataSource.query<User[]>(
+      `UPDATE t_user SET username = $1, updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, username, email,
+                 is_active AS "isActive", is_superuser AS "isSuperuser",
+                 created_at AS "createdAt", updated_at AS "updatedAt"`,
+      [username, id],
+    );
+    return rows[0];
+  }
+
+  async updatePassword(id: string, hashedPassword: string): Promise<void> {
+    await this.dataSource.query(
+      `UPDATE t_user SET hashed_password = $1, updated_at = NOW() WHERE id = $2`,
+      [hashedPassword, id],
+    );
   }
 }

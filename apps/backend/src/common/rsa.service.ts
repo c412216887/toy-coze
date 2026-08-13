@@ -16,7 +16,7 @@ export class RsaService {
   decrypt(cipherBase64: string): string {
     try {
       const bytes = forge.util.decode64(cipherBase64);
-      return this.privateKey.decrypt(bytes, 'RSA-OAEP');
+      return this.privateKey.decrypt(bytes, 'RSAES-PKCS1-V1_5');
     } catch {
       throw new BadRequestException('密码解密失败，请刷新页面重试');
     }

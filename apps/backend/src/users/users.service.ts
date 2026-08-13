@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { User } from './user.entity';
@@ -38,5 +39,19 @@ export class UsersService {
 
   async findByEmail(email: string): Promise<User | null> {
     return this.userRepo.findByEmail(email);
+  }
+
+  async updateUsername(userId: string, username: string): Promise<User> {
+    const exists = await this.userRepo.existsByUsername(username);
+    if (exists) throw new ConflictException('用户名已存在');
+    return this.userRepo.updateUsername(userId, username);
+  }
+
+  async changePassword(userId: string, oldPlain: string, newPlain: string): Promise<void> {
+    const user = await this.userRepo.findByIdWithPassword(userId);
+    if (!user) throw new NotFoundException('用户不存在');
+    const valid = await bcrypt.compare(oldPlain, user.hashedPassword);
+    if (!valid) throw new UnauthorizedException('当前密码错误');
+    await this.userRepo.updatePassword(userId, await bcrypt.hash(newPlain, 12));
   }
 }
