@@ -187,7 +187,7 @@ async function handleSubmit() {
   validateEmail()
   validatePassword()
   validateConfirmPassword()
-  if (!isFormValid.value) return
+  if (Object.values(fieldErrors).some((e) => e)) return
 
   errorMsg.value = ''
   loading.value = true
