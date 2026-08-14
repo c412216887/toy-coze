@@ -1,7 +1,7 @@
 import { proxyActivities } from '@temporalio/workflow'
 import type * as activities from '../activities/workflow.activities.js'
 
-const { executeWorkflowNode, finalizeWorkflowRun } = proxyActivities<typeof activities>({
+const { executeWorkflowNode, finalizeWorkflowRun, failWorkflowRun } = proxyActivities<typeof activities>({
   startToCloseTimeout: '10 minutes',
   retry: { maximumAttempts: 3 },
 })
@@ -15,22 +15,40 @@ export interface WorkflowRunInput {
 }
 
 export async function runWorkflowExecution(input: WorkflowRunInput): Promise<void> {
+  const startedAt = Date.now()
   const nodes: Array<{ id: string; type: string; data: Record<string, unknown> }> =
     (input.graphData.nodes as typeof nodes) ?? []
 
   const nodeOutputs: Record<string, unknown> = {}
+  let totalTokens = 0
 
-  for (const node of nodes) {
-    const output = await executeWorkflowNode({
+  try {
+    for (const node of nodes) {
+      const output = await executeWorkflowNode({
+        runId: input.runId,
+        nodeId: node.id,
+        nodeType: node.type,
+        nodeData: node.data,
+        inputs: input.inputs,
+        previousOutputs: nodeOutputs,
+      })
+      nodeOutputs[node.id] = output
+      totalTokens += output.tokensUsed
+    }
+
+    await finalizeWorkflowRun({
       runId: input.runId,
-      nodeId: node.id,
-      nodeType: node.type,
-      nodeData: node.data,
-      inputs: input.inputs,
-      previousOutputs: nodeOutputs,
+      outputs: nodeOutputs,
+      totalTokens,
+      elapsedMs: Date.now() - startedAt,
     })
-    nodeOutputs[node.id] = output
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    await failWorkflowRun({
+      runId: input.runId,
+      message,
+      elapsedMs: Date.now() - startedAt,
+    })
+    throw err
   }
-
-  await finalizeWorkflowRun({ runId: input.runId, outputs: nodeOutputs })
 }

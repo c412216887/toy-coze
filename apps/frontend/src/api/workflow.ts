@@ -67,6 +67,31 @@ export async function deleteWorkflow(id: string): Promise<void> {
   await request.delete(`/api/v1/workflows/${id}`)
 }
 
+export interface WorkflowRun {
+  id: string
+  workflowId: string
+  userId: string
+  status: 'pending' | 'running' | 'success' | 'failed'
+  inputs: Record<string, unknown> | null
+  outputs: Record<string, unknown> | null
+  errorMessage: string | null
+  elapsedMs: number | null
+  totalTokens: number
+  finishedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export async function getWorkflowRuns(workflowId: string): Promise<WorkflowRun[]> {
+  const res = await request.get<WorkflowRun[]>(`/api/v1/workflows/${workflowId}/runs`)
+  return res.data
+}
+
+export async function getWorkflowRun(workflowId: string, runId: string): Promise<WorkflowRun> {
+  const res = await request.get<WorkflowRun>(`/api/v1/workflows/${workflowId}/runs/${runId}`)
+  return res.data
+}
+
 export interface RunWorkflowResponse {
   runId: string
 }

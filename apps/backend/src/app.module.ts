@@ -29,6 +29,7 @@ import databaseConfig from './config/database.config'
         autoLoadEntities: true,
         synchronize: config.get('app.debug'),
         logging: config.get('app.debug'),
+        timezone: 'Z',
       }),
     }),
     // 全局限流：同一 IP 每分钟最多 20 次（登录/注册接口单独收严见 AuthController）

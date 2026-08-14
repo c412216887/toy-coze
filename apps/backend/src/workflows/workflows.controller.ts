@@ -29,6 +29,8 @@ type RunPayload = {
   content?: string
   message?: string
   outputs?: unknown
+  totalTokens?: number
+  elapsedMs?: number
 }
 
 const runStreams = new Map<string, ReplaySubject<RunPayload>>()
@@ -81,6 +83,15 @@ export class WorkflowsController {
     return this.workflowsService.findRuns(id, user.id)
   }
 
+  @Get(':id/runs/:runId')
+  getRun(
+    @Param('id') _id: string,
+    @Param('runId') runId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.workflowsService.findRun(runId, user.id)
+  }
+
   @Post(':id/run')
   async runWorkflow(
     @Param('id') id: string,
@@ -119,12 +130,13 @@ export class WorkflowsController {
 export class InternalController {
   constructor(
     private readonly config: ConfigService,
+    private readonly workflowsService: WorkflowsService,
   ) {}
 
   @ApiExcludeEndpoint()
   @Post('runs/:runId/push')
   @HttpCode(HttpStatus.NO_CONTENT)
-  push(
+  async push(
     @Param('runId') runId: string,
     @Headers('x-internal-secret') secret: string,
     @Body() body: RunPayload,
@@ -134,9 +146,25 @@ export class InternalController {
     }
     const subject = getOrCreateStream(runId)
     subject.next(body)
-    if (body.type === 'done' || body.type === 'error') {
+    if (body.type === 'done') {
       subject.complete()
       setTimeout(() => runStreams.delete(runId), 30_000)
+      await this.workflowsService.updateRun(runId, {
+        status: 'success',
+        outputs: body.outputs as Record<string, unknown> | null,
+        totalTokens: body.totalTokens ?? 0,
+        elapsedMs: body.elapsedMs ?? null,
+        finishedAt: new Date(),
+      })
+    } else if (body.type === 'error') {
+      subject.complete()
+      setTimeout(() => runStreams.delete(runId), 30_000)
+      await this.workflowsService.updateRun(runId, {
+        status: 'failed',
+        errorMessage: body.message ?? '未知错误',
+        elapsedMs: body.elapsedMs ?? null,
+        finishedAt: new Date(),
+      })
     }
   }
 }

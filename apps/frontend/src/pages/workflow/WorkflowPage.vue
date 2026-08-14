@@ -75,6 +75,12 @@
           >
             编辑
           </RouterLink>
+          <RouterLink
+            :to="`/workflow/${workflow.id}/runs`"
+            class="btn btn--ghost btn--sm"
+          >
+            历史
+          </RouterLink>
           <button
             class="btn btn--ghost btn--sm btn--danger"
             @click="openDeleteConfirm(workflow.id, workflow.name)"

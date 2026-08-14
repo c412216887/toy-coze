@@ -21,6 +21,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/pages/workflow/WorkflowEditorPage.vue')
   },
   {
+    path: '/workflow/:id/runs',
+    name: 'workflow-runs',
+    component: () => import('@/pages/workflow/WorkflowRunsPage.vue')
+  },
+  {
     path: '/',
     component: () => import('@/layouts/DefaultLayout.vue'),
     children: [

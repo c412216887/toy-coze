@@ -121,9 +121,14 @@ export class WorkflowsService {
     return this.runRepo.findBy({ workflowId });
   }
 
-  async assertRunBelongsToUser(runId: string, userId: string): Promise<void> {
+  async findRun(runId: string, userId: string): Promise<WorkflowRun> {
     const run = await this.runRepo.findOneBy({ id: runId });
     if (!run) throw new NotFoundException('运行记录不存在');
     if (run.userId !== userId) throw new ForbiddenException();
+    return run;
+  }
+
+  async assertRunBelongsToUser(runId: string, userId: string): Promise<void> {
+    await this.findRun(runId, userId);
   }
 }

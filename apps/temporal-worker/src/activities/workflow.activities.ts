@@ -79,6 +79,26 @@ function renderTemplate(template: string, vars: Record<string, unknown>): string
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => String(vars[key] ?? ''))
 }
 
-export async function finalizeWorkflowRun(input: { runId: string; outputs: Record<string, unknown> }): Promise<void> {
-  await pushToken(input.runId, 'done', { outputs: input.outputs })
+export async function finalizeWorkflowRun(input: {
+  runId: string
+  outputs: Record<string, unknown>
+  totalTokens: number
+  elapsedMs: number
+}): Promise<void> {
+  await pushToken(input.runId, 'done', {
+    outputs: input.outputs,
+    totalTokens: input.totalTokens,
+    elapsedMs: input.elapsedMs,
+  })
+}
+
+export async function failWorkflowRun(input: {
+  runId: string
+  message: string
+  elapsedMs: number
+}): Promise<void> {
+  await pushToken(input.runId, 'error', {
+    message: input.message,
+    elapsedMs: input.elapsedMs,
+  })
 }
