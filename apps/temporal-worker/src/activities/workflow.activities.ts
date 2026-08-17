@@ -132,7 +132,7 @@ async function executeHttpNode(input: NodeExecutionInput): Promise<NodeExecution
 async function executeCodeNode(input: NodeExecutionInput): Promise<NodeExecutionOutput> {
   const code = (input.nodeData.code as string) ?? ''
   const context = vm.createContext({
-    inputs: buildContext(input),
+    context: buildContext(input),
     output: undefined,
     console: { log: () => {} },
   })
