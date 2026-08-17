@@ -9,6 +9,7 @@
         :value="String(data.label ?? '')"
         @input="patch('label', ($event.target as HTMLInputElement).value)"
       />
+      <p class="form-field__hint">变量引用名：<code class="form-field__name">{{ data.name }}</code></p>
     </div>
 
     <div class="form-field">

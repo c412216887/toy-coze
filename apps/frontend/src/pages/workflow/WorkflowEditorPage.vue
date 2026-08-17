@@ -283,7 +283,9 @@ function onDrop(event: DragEvent) {
 
   idCounter++
   const id = `${nodeType}-${Date.now()}-${idCounter}`
-  nodes.value.push({ id, type: nodeType, position, data: def.defaultData() })
+  // 统计当前画布中同类型节点数量，生成 name 序号（如 llm_1、llm_2）
+  const sameTypeCount = nodes.value.filter(n => n.type === nodeType).length
+  nodes.value.push({ id, type: nodeType, position, data: def.defaultData(sameTypeCount + 1) })
 }
 
 const editingTitle = ref(false)

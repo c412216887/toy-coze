@@ -11,9 +11,17 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    CodeNode: typeof import('./../components/nodes/CodeNode.vue')['default']
+    CodeNodeConfig: typeof import('./../components/nodes/CodeNodeConfig.vue')['default']
+    ConditionNode: typeof import('./../components/nodes/ConditionNode.vue')['default']
+    ConditionNodeConfig: typeof import('./../components/nodes/ConditionNodeConfig.vue')['default']
     EndNode: typeof import('./../components/nodes/EndNode.vue')['default']
     EndNodeConfig: typeof import('./../components/nodes/EndNodeConfig.vue')['default']
     HelloWorld: typeof import('./../components/HelloWorld.vue')['default']
+    HttpNode: typeof import('./../components/nodes/HttpNode.vue')['default']
+    HttpNodeConfig: typeof import('./../components/nodes/HttpNodeConfig.vue')['default']
+    KnowledgeNode: typeof import('./../components/nodes/KnowledgeNode.vue')['default']
+    KnowledgeNodeConfig: typeof import('./../components/nodes/KnowledgeNodeConfig.vue')['default']
     LlmNode: typeof import('./../components/nodes/LlmNode.vue')['default']
     LlmNodeConfig: typeof import('./../components/nodes/LlmNodeConfig.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']

@@ -32,7 +32,9 @@ export async function runWorkflowExecution(input: WorkflowRunInput): Promise<voi
         inputs: input.inputs,
         previousOutputs: nodeOutputs,
       })
-      nodeOutputs[node.id] = output
+      // 按节点 name（变量引用标识符）索引，供下游通过 {{name}} 引用
+      const name = (node.data.name as string) || (node.data.label as string) || node.id
+      nodeOutputs[name] = output
       totalTokens += output.tokensUsed
     }
 

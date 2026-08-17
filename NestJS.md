@@ -52,6 +52,17 @@
 1. Controller
 2. provider
 3. module
+
+- dynamic module，使用forRoot, forFeature, register, forRootAsync, forFeatureAsync, registerAsync.
+  forRoot和forFeature配套使用，forRoot传递全局配置项，生成动态module，forFeature，继承并修改forRoot配置。
+
+  | 特性          | forRoot                                      | forRootAsync                                                      |
+  | ------------- | -------------------------------------------- | ----------------------------------------------------------------- |
+  | 执行方式      | 同步（Synchronous）                          | 异步/支持延迟解析（Asynchronous）                                 |
+  | 传入参数      | 直接传入配置对象（Static Object）            | "传入工厂函数或类（useFactory、 useClass 、 useExisting）"        |
+  | 依赖注入 (DI) | 无法注入 NestJS 的其他 Service               | 支持通过 inject 注入其他 Service（如 ConfigService）              |
+  | 典型适用场景  | 配置参数固定，或直接写死/从 process.env 读取 | 配置需依赖其他服务提供，或需要异步获取（如从远端 API/密钥库加载） |
+
 4. middleware
 5. exception filter
 
@@ -59,7 +70,7 @@
 
 6. guard
 
-- 通过jwt获取完整的用户信息
+- 通过jwt获取完整的用户信息,[JWT](#jwt用户验证)
 
 7. interceptor
 
@@ -70,3 +81,71 @@
 - 验证请求参数
 
 9. custom decorator
+
+### JWT用户验证
+
+1. 安装`@nestjs/jwt`
+2. 配置secret
+
+```typescript
+import { JwtModule } from "@nestjs/jwt"
+@module({
+  JwtModule.registerAsync({
+    inject: [ConfigService],
+    useFactory: (config: ConfigService) => ({
+      secret: config.get('app.jwtSecret'),
+      signOptions: { expiresIn: config.get('app.jwtExpiresIn') },
+    }),
+  }),
+})
+export class AuthModule {}
+```
+
+3. 使用JwtService生成token
+
+```typescript
+@Injectable()
+export class AuthService {
+  constructor(private jwtService: JwtService) {}
+  signIn() {
+    const payload = { sub: user.id, username: username };
+    const accessToken = this.jwtService.sign(payload);
+  }
+}
+```
+
+4. 使用jwtGuard
+
+```typescript
+import { AuthGuard } from "@nestjs/passport";
+@useGuard(AuthGuard("jwt"))
+export class WorkflowsController {}
+```
+
+### swagger配置
+
+1. 安装依赖 `@nestjs/swagger`
+2. 在`main.ts`中初始化
+
+```typescript
+import { AppModule } from "./app.module";
+import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  // 初始化Doc配置
+  const config = new DocumentBuilder()
+    .setTitle("API")
+    .setDescription("NestJS 项目服务接口描述")
+    .setVersion("1.0")
+    .addBearerAuth() // 如果需要 JWT 鉴权，添加此配置
+    .build();
+
+  // 创建文档对象工厂函数
+  const documentFactory = () => SwaggerModule.createDocument(app, config);
+
+  // 挂在swagger UI页面
+  SwaggerModule.setup("doc", app, documentFactory);
+}
+bootstrap();
+```
