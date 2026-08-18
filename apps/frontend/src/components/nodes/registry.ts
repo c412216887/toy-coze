@@ -27,11 +27,13 @@ export interface NodeDefinition {
 }
 
 const PREFIX: Record<string, string> = {
+  startNode: 'start',
   llmNode: 'llm',
   httpNode: 'http',
   codeNode: 'code',
   conditionNode: 'condition',
   knowledgeNode: 'knowledge',
+  endNode: 'end',
 }
 
 export const nodeRegistry: NodeDefinition[] = [
@@ -40,7 +42,7 @@ export const nodeRegistry: NodeDefinition[] = [
     label: '开始',
     component: markRaw(StartNode),
     configPanel: markRaw(StartNodeConfig),
-    defaultData: () => ({ label: '开始', name: 'start' }),
+    defaultData: () => ({ label: '开始', name: 'start_1' }),
     miniMapColor: '#86efac',
     draggable: false,
   },
@@ -100,7 +102,7 @@ export const nodeRegistry: NodeDefinition[] = [
     label: '结束',
     component: markRaw(EndNode),
     configPanel: markRaw(EndNodeConfig),
-    defaultData: () => ({ label: '结束', name: 'end', outputTemplate: '' }),
+    defaultData: () => ({ label: '结束', name: 'end_1', outputTemplate: '' }),
     miniMapColor: '#fca5a5',
     draggable: false,
   },

@@ -24,10 +24,9 @@ import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 
 const props = defineProps<NodeProps>()
-const { data, selected } = props
 
 const codePreview = computed(() => {
-  const code = String(data.code ?? '').trim()
+  const code = String(props.data.code ?? '').trim()
   if (!code) return ''
   const firstLine = code.split('\n')[0]
   return firstLine.length > 40 ? firstLine.slice(0, 40) + '…' : firstLine

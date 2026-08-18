@@ -28,6 +28,7 @@ export interface WorkflowEdgeDef {
   id: string
   source: string
   target: string
+  sourceHandle?: string
 }
 
 export interface WorkflowDetail extends Workflow {
@@ -103,7 +104,7 @@ export async function runWorkflow(id: string, input: string): Promise<RunWorkflo
 
 export type SseEvent =
   | { type: 'token'; content: string }
-  | { type: 'done'; status: string; runId: string }
+  | { type: 'done'; status: string; runId: string; outputs: Record<string, unknown> }
   | { type: 'error'; message: string }
 
 const SSE_MAX_RETRIES = 3
@@ -194,7 +195,7 @@ function parseSseBlock(block: string): SseEvent | null {
     const parsed = (outer.data ?? outer) as Record<string, unknown>
     const type = parsed.type as string
     if (type === 'token') return { type: 'token', content: parsed.content as string }
-    if (type === 'done') return { type: 'done', status: parsed.status as string, runId: parsed.runId as string }
+    if (type === 'done') return { type: 'done', status: parsed.status as string, runId: parsed.runId as string, outputs: (parsed.outputs ?? {}) as Record<string, unknown> }
     if (type === 'error') return { type: 'error', message: parsed.message as string }
   } catch {}
   return null

@@ -31,7 +31,6 @@ import { Handle, Position } from '@vue-flow/core'
 import type { NodeProps } from '@vue-flow/core'
 
 const props = defineProps<NodeProps>()
-const { data, selected } = props
 </script>
 
 <style lang="scss" scoped>

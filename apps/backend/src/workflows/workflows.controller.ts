@@ -119,7 +119,7 @@ export class WorkflowsController {
           data.type === 'token'
             ? { type: 'token', content: data.content }
             : data.type === 'done'
-              ? { type: 'done', status: 'completed', runId }
+              ? { type: 'done', status: 'completed', runId, outputs: (data.outputs ?? {}) as Record<string, unknown> }
               : { type: 'error', message: data.message },
       } satisfies MessageEvent)),
     )

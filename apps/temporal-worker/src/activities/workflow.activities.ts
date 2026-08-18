@@ -34,6 +34,8 @@ export interface NodeExecutionOutput {
 
 export async function executeWorkflowNode(input: NodeExecutionInput): Promise<NodeExecutionOutput> {
   switch (input.nodeType) {
+    case 'startNode':
+      return { nodeId: input.nodeId, result: input.inputs.input ?? '', tokensUsed: 0 }
     case 'llmNode':
       return executeLlmNode(input)
     case 'httpNode':
@@ -102,19 +104,31 @@ function buildContext(input: NodeExecutionInput): Record<string, unknown> {
 }
 
 async function executeHttpNode(input: NodeExecutionInput): Promise<NodeExecutionOutput> {
-  const { method = 'GET', url, headers = {}, body } = input.nodeData as {
+  const { method = 'GET', url, headers = {}, body, authType, authToken, authHeaderName, authHeaderValue } = input.nodeData as {
     method?: string
     url: string
     headers?: Record<string, string>
     body?: string
+    authType?: 'none' | 'bearer' | 'custom'
+    authToken?: string
+    authHeaderName?: string
+    authHeaderValue?: string
   }
 
-  const resolvedUrl = renderTemplate(url ?? '', buildContext(input))
-  const resolvedBody = body ? renderTemplate(body, buildContext(input)) : undefined
+  const ctx = buildContext(input)
+  const resolvedUrl = renderTemplate(url ?? '', ctx)
+  const resolvedBody = body ? renderTemplate(body, ctx) : undefined
+
+  const authHeaders: Record<string, string> = {}
+  if (authType === 'bearer' && authToken) {
+    authHeaders['Authorization'] = `Bearer ${renderTemplate(authToken, ctx)}`
+  } else if (authType === 'custom' && authHeaderName) {
+    authHeaders[authHeaderName] = renderTemplate(authHeaderValue ?? '', ctx)
+  }
 
   const res = await fetch(resolvedUrl, {
     method,
-    headers: { 'content-type': 'application/json', ...headers },
+    headers: { 'content-type': 'application/json', ...headers, ...authHeaders },
     body: resolvedBody && method !== 'GET' ? resolvedBody : undefined,
   })
 

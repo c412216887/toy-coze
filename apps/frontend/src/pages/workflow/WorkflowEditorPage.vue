@@ -194,16 +194,21 @@ onMounted(async () => {
   workflowName.value = detail.name
 
   if (detail.graphData?.nodes?.length) {
-    nodes.value = detail.graphData.nodes.map((n: WorkflowNodeDef): Node => ({
-      id: n.id,
-      type: n.type,
-      position: n.position,
-      data: { ...n.data }
-    }))
+    const typeCounters: Record<string, number> = {}
+    nodes.value = detail.graphData.nodes.map((n: WorkflowNodeDef): Node => {
+      typeCounters[n.type] = (typeCounters[n.type] ?? 0) + 1
+      const prefixMap: Record<string, string> = {
+        startNode: 'start', llmNode: 'llm', httpNode: 'http',
+        codeNode: 'code', conditionNode: 'condition', knowledgeNode: 'knowledge', endNode: 'end',
+      }
+      const name = (n.data.name as string) || `${prefixMap[n.type] ?? n.type}_${typeCounters[n.type]}`
+      return { id: n.id, type: n.type, position: n.position, data: { ...n.data, name } }
+    })
     edges.value = detail.graphData.edges.map((e: WorkflowEdgeDef): Edge => ({
       id: e.id,
       source: e.source,
-      target: e.target
+      target: e.target,
+      sourceHandle: e.sourceHandle ?? undefined,
     }))
   } else {
     nodes.value = [
@@ -211,7 +216,7 @@ onMounted(async () => {
         id: 'start-1',
         type: 'startNode',
         position: { x: 80, y: 180 },
-        data: { label: '开始' }
+        data: { label: '开始', name: 'start_1' }
       },
       {
         id: 'end-1',
@@ -237,7 +242,8 @@ async function handleSave() {
       edges: edges.value.map<WorkflowEdgeDef>(e => ({
         id: e.id,
         source: e.source,
-        target: e.target
+        target: e.target,
+        sourceHandle: e.sourceHandle ?? undefined,
       }))
     }
     await updateWorkflow(workflowId, {
@@ -370,6 +376,13 @@ async function startRun() {
           if (outputEl.value) outputEl.value.scrollTop = outputEl.value.scrollHeight
         })
       } else if (event.type === 'done') {
+        if (!runDrawer.output) {
+          const endNode = nodes.value.find(n => n.type === 'endNode')
+          const endName = (endNode?.data.name as string) || 'end_1'
+          const endOutput = event.outputs[endName] as { result?: unknown } | undefined
+          const result = endOutput?.result ?? ''
+          if (result) runDrawer.output = String(result)
+        }
         runDrawer.status = 'completed'
       } else if (event.type === 'error') {
         runDrawer.status = 'failed'
