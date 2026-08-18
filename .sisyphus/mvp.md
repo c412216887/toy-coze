@@ -1,9 +1,9 @@
 ---
-name: coze-mvp-prd
-description: Coze AI 工作流平台 MVP 产品需求文档。记录 MVP 核心路径、功能模块、接口清单、数据结构与验收标准，开发时使用。
+name: dify-mvp-prd
+description: Dify 风格 AI 工作流平台 MVP 产品需求文档。记录 MVP 核心路径、功能模块、接口清单、数据结构与验收标准，开发时使用。
 ---
 
-# Coze MVP 产品需求文档
+# Dify 风格工作流平台 — MVP 产品需求文档
 
 ## 一、产品定位
 
