@@ -21,6 +21,10 @@ export class TransformInterceptor<T>
     const req = context.switchToHttp().getRequest<Request>()
     const traceId = req.headers['x-trace-id'] as string | undefined
 
+    if (req.path.includes('/stream')) {
+      return next.handle() as Observable<ApiResponse<unknown>>
+    }
+
     return next.handle().pipe(
       map((data) => {
         const isBizResult = data instanceof BizResult

@@ -19,6 +19,7 @@ import { ApiTags, ApiBearerAuth, ApiExcludeEndpoint } from '@nestjs/swagger'
 import { Observable, ReplaySubject } from 'rxjs'
 import { map, takeWhile } from 'rxjs/operators'
 import { ConfigService } from '@nestjs/config'
+import { SkipThrottle } from '@nestjs/throttler'
 import { WorkflowsService } from './workflows.service'
 import { CreateWorkflowDto, UpdateWorkflowDto, RunWorkflowDto } from './workflow.dto'
 import { CurrentUser } from '../auth/current-user.decorator'
@@ -114,14 +115,16 @@ export class WorkflowsController {
 
     return subject.pipe(
       takeWhile(data => data.type !== 'done' && data.type !== 'error', true),
-      map((data) => ({
-        data:
-          data.type === 'token'
-            ? { type: 'token', content: data.content }
-            : data.type === 'done'
-              ? { type: 'done', status: 'completed', runId, outputs: (data.outputs ?? {}) as Record<string, unknown> }
-              : { type: 'error', message: data.message },
-      } satisfies MessageEvent)),
+      map((data) => {
+        return {
+          data:
+            data.type === 'token'
+              ? { type: 'token', content: data.content }
+              : data.type === 'done'
+                ? { type: 'done', status: 'completed', runId, outputs: (data.outputs ?? {}) as Record<string, unknown> }
+                : { type: 'error', message: data.message },
+        } satisfies MessageEvent
+      }),
     )
   }
 }
@@ -134,6 +137,7 @@ export class InternalController {
   ) {}
 
   @ApiExcludeEndpoint()
+  @SkipThrottle()
   @Post('runs/:runId/push')
   @HttpCode(HttpStatus.NO_CONTENT)
   async push(

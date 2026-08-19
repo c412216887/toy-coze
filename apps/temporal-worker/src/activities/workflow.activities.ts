@@ -7,7 +7,8 @@ function getEnv(key: string, fallback: string): string {
 }
 
 async function pushToken(runId: string, type: 'token' | 'done' | 'error', payload: Record<string, unknown>): Promise<void> {
-  await fetch(`${getEnv('INTERNAL_BASE_URL', 'http://localhost:3000')}/api/v1/internal/runs/${runId}/push`, {
+  const url = `${getEnv('INTERNAL_BASE_URL', 'http://localhost:3000')}/api/v1/internal/runs/${runId}/push`
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -15,6 +16,9 @@ async function pushToken(runId: string, type: 'token' | 'done' | 'error', payloa
     },
     body: JSON.stringify({ type, ...payload }),
   })
+  if (!res.ok) {
+    console.error(`[pushToken] failed: ${res.status} ${await res.text()}`)
+  }
 }
 
 export interface NodeExecutionInput {
@@ -77,10 +81,25 @@ async function executeLlmNode(input: NodeExecutionInput): Promise<NodeExecutionO
   })
 
   let fullText = ''
+  const tokenBatch: string[] = []
+  let lastFlush = Date.now()
+  const BATCH_SIZE = 5
+  const BATCH_INTERVAL_MS = 50
 
   for await (const token of textStream) {
     fullText += token
-    await pushToken(input.runId, 'token', { content: token })
+    tokenBatch.push(token)
+    
+    const now = Date.now()
+    if (tokenBatch.length >= BATCH_SIZE || now - lastFlush > BATCH_INTERVAL_MS) {
+      await pushToken(input.runId, 'token', { content: tokenBatch.join('') })
+      tokenBatch.length = 0
+      lastFlush = now
+    }
+  }
+
+  if (tokenBatch.length > 0) {
+    await pushToken(input.runId, 'token', { content: tokenBatch.join('') })
   }
 
   const { totalTokens } = await usage
