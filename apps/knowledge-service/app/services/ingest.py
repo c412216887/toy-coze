@@ -88,3 +88,13 @@ async def delete_document(db: AsyncSession, doc_id: str) -> None:
             kb.doc_count = kb.doc_count - 1
         await db.delete(doc)
     await db.commit()
+
+
+async def delete_knowledge_base(db: AsyncSession, kb_code: str) -> None:
+    doc_result = await db.execute(select(Document.id).where(Document.kb_code == kb_code))
+    doc_ids = [row[0] for row in doc_result.all()]
+    if doc_ids:
+        await db.execute(delete(DocumentChunk).where(DocumentChunk.doc_id.in_(doc_ids)))
+    await db.execute(delete(Document).where(Document.kb_code == kb_code))
+    await db.execute(delete(KnowledgeBase).where(KnowledgeBase.kb_code == kb_code))
+    await db.commit()

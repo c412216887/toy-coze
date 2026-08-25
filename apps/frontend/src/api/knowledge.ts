@@ -33,6 +33,11 @@ export interface CreateKnowledgeBasePayload {
   chunk_overlap?: number
 }
 
+export interface UpdateKnowledgeBasePayload {
+  name?: string
+  description?: string
+}
+
 export const knowledgeApi = {
   async createBase(payload: CreateKnowledgeBasePayload): Promise<KnowledgeBase> {
     const res = await request.post<KnowledgeBase>('/api/v1/knowledge/bases', payload)
@@ -41,6 +46,11 @@ export const knowledgeApi = {
 
   async getBase(kbCode: string): Promise<KnowledgeBase> {
     const res = await request.get<KnowledgeBase>(`/api/v1/knowledge/bases/${kbCode}`)
+    return res.data
+  },
+
+  async updateBase(kbCode: string, payload: UpdateKnowledgeBasePayload): Promise<KnowledgeBase> {
+    const res = await request.patch<KnowledgeBase>(`/api/v1/knowledge/bases/${kbCode}`, payload)
     return res.data
   },
 
@@ -64,6 +74,10 @@ export const knowledgeApi = {
 
   async deleteDocument(docId: string): Promise<void> {
     await request.delete(`/api/v1/knowledge/documents/${docId}`)
+  },
+
+  async deleteBase(kbCode: string): Promise<void> {
+    await request.delete(`/api/v1/knowledge/bases/${kbCode}`)
   },
 }
 

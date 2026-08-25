@@ -54,6 +54,16 @@
             <span class="kb-card__date">{{ formatDate(kb.created_at) }}</span>
           </div>
         </div>
+        <button class="kb-card__edit-btn" title="编辑" @click.stop="openEditDialog(kb)">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M11.333 2a1.886 1.886 0 0 1 2.667 2.667L5.667 13 2 14l1-3.667L11.333 2Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <button class="kb-card__delete-btn" title="删除" @click.stop="confirmDeleteKb(kb)">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M2 4h12M5 4V2.667A.667.667 0 0 1 5.667 2h4.666A.667.667 0 0 1 11 2.667V4M6 7.333v4M10 7.333v4M3.333 4l.667 9.333A.667.667 0 0 0 4.667 14h6.666a.667.667 0 0 0 .667-.667L12.667 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -200,6 +210,82 @@
       </div>
     </Transition>
 
+    <!-- 编辑知识库 Dialog -->
+    <Transition name="dialog-fade">
+      <div v-if="showEditDialog" class="dialog-overlay" @click.self="closeEditDialog">
+        <div class="dialog">
+          <div class="dialog__header">
+            <span class="dialog__title">编辑知识库</span>
+            <button class="dialog__close" @click="closeEditDialog">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+            </button>
+          </div>
+          <div class="dialog__body">
+            <div class="form-field">
+              <label class="form-field__label">
+                知识库名称 <span class="form-field__required">*</span>
+              </label>
+              <input
+                v-model="editForm.name"
+                class="form-field__input"
+                :class="{ 'form-field__input--error': editErrors.name }"
+                placeholder="例如：产品文档"
+                @keyup.enter="submitEdit"
+              />
+              <span v-if="editErrors.name" class="form-field__error">{{ editErrors.name }}</span>
+            </div>
+            <div class="form-field">
+              <label class="form-field__label">描述（可选）</label>
+              <input
+                v-model="editForm.description"
+                class="form-field__input"
+                placeholder="知识库用途描述"
+                @keyup.enter="submitEdit"
+              />
+            </div>
+          </div>
+          <div class="dialog__footer">
+            <button class="btn btn--ghost" @click="closeEditDialog">取消</button>
+            <button class="btn btn--primary" :disabled="editing" @click="submitEdit">
+              <span v-if="editing" class="spinner spinner--sm spinner--white" />
+              {{ editing ? '保存中...' : '保存' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- 删除知识库确认 Dialog -->
+    <Transition name="dialog-fade">
+      <div v-if="kbToDelete" class="dialog-overlay" @click.self="kbToDelete = null">
+        <div class="dialog dialog--sm">
+          <div class="dialog__header">
+            <span class="dialog__title">删除知识库</span>
+            <button class="dialog__close" @click="kbToDelete = null">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+            </button>
+          </div>
+          <div class="dialog__body">
+            <p class="dialog__confirm-text">
+              确定删除知识库 <strong>{{ kbToDelete.name }}</strong>（{{ kbToDelete.kb_code }}）？<br />
+              此操作会删除其中所有文档和向量数据，无法撤销。
+            </p>
+          </div>
+          <div class="dialog__footer">
+            <button class="btn btn--ghost" @click="kbToDelete = null">取消</button>
+            <button class="btn btn--danger" :disabled="deletingKb" @click="executeDeleteKb">
+              <span v-if="deletingKb" class="spinner spinner--sm spinner--white" />
+              {{ deletingKb ? '删除中...' : '确认删除' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- 删除文档确认 Dialog -->
     <Transition name="dialog-fade">
       <div v-if="docToDelete" class="dialog-overlay" @click.self="docToDelete = null">
@@ -308,6 +394,72 @@ async function submitCreate() {
     createErrors.value['kb_code'] = err instanceof BizError ? err.message : '创建失败，请重试'
   } finally {
     creating.value = false
+  }
+}
+
+/* ─── 编辑知识库 ─── */
+const showEditDialog = ref(false)
+const editing = ref(false)
+const editingKb = ref<KnowledgeBase | null>(null)
+const editForm = ref({ name: '', description: '' })
+const editErrors = ref<Record<string, string>>({})
+
+function openEditDialog(kb: KnowledgeBase) {
+  editingKb.value = kb
+  editForm.value = { name: kb.name, description: kb.description ?? '' }
+  editErrors.value = {}
+  showEditDialog.value = true
+}
+
+function closeEditDialog() {
+  showEditDialog.value = false
+  editingKb.value = null
+}
+
+async function submitEdit() {
+  if (!editingKb.value || editing.value) return
+  if (!editForm.value.name.trim()) {
+    editErrors.value['name'] = '请输入知识库名称'
+    return
+  }
+  editing.value = true
+  try {
+    const updated = await knowledgeApi.updateBase(editingKb.value.kb_code, {
+      name: editForm.value.name.trim(),
+      description: editForm.value.description.trim() || undefined,
+    })
+    const idx = knowledgeBases.value.findIndex((k) => k.kb_code === updated.kb_code)
+    if (idx !== -1) knowledgeBases.value[idx] = updated
+    if (activeKb.value?.kb_code === updated.kb_code) activeKb.value = updated
+    closeEditDialog()
+  } catch (err) {
+    editErrors.value['name'] = err instanceof BizError ? err.message : '保存失败，请重试'
+  } finally {
+    editing.value = false
+  }
+}
+
+/* ─── 删除知识库 ─── */
+const kbToDelete = ref<KnowledgeBase | null>(null)
+const deletingKb = ref(false)
+
+function confirmDeleteKb(kb: KnowledgeBase) {
+  kbToDelete.value = kb
+}
+
+async function executeDeleteKb() {
+  if (!kbToDelete.value || deletingKb.value) return
+  deletingKb.value = true
+  try {
+    await knowledgeApi.deleteBase(kbToDelete.value.kb_code)
+    knowledgeBases.value = knowledgeBases.value.filter((k) => k.kb_code !== kbToDelete.value!.kb_code)
+    persistKbCodes()
+    if (activeKb.value?.kb_code === kbToDelete.value.kb_code) closeDrawer()
+    kbToDelete.value = null
+  } catch (err) {
+    alert(err instanceof BizError ? err.message : '删除失败，请重试')
+  } finally {
+    deletingKb.value = false
   }
 }
 
@@ -461,6 +613,7 @@ function statusLabel(status: KnowledgeDocument['status']): string {
 }
 
 .kb-card {
+  position: relative;
   padding: 18px 20px;
   cursor: pointer;
   background: #fff;
@@ -471,6 +624,11 @@ function statusLabel(status: KnowledgeDocument['status']): string {
   &:hover {
     border-color: #6366f1;
     box-shadow: 0 0 0 3px rgb(99 102 241 / 10%);
+
+    .kb-card__edit-btn,
+    .kb-card__delete-btn {
+      opacity: 1;
+    }
   }
 
   &__name {
@@ -509,6 +667,51 @@ function statusLabel(status: KnowledgeDocument['status']): string {
     display: flex;
     align-items: center;
     gap: 4px;
+  }
+
+  &__edit-btn {
+    position: absolute;
+    top: 12px;
+    right: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    color: #6b7280;
+    background: #f3f4f6;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease, background 0.12s ease, color 0.12s ease;
+
+    &:hover {
+      color: #6366f1;
+      background: #eef2ff;
+    }
+  }
+
+  &__delete-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    color: #fff;
+    background: #ef4444;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease, background 0.12s ease;
+
+    &:hover {
+      background: #dc2626;
+    }
   }
 }
 

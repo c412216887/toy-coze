@@ -28,6 +28,16 @@ export class CreateKnowledgeBaseDto {
   chunk_overlap?: number
 }
 
+export class UpdateKnowledgeBaseDto {
+  @IsOptional()
+  @IsString()
+  name?: string
+
+  @IsOptional()
+  @IsString()
+  description?: string
+}
+
 export class SearchKnowledgeDto {
   @IsString()
   query!: string

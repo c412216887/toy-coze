@@ -3,8 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.database import get_db
 from app.models.knowledge import KnowledgeBase, Document
-from app.schemas.knowledge import KnowledgeBaseCreate, KnowledgeBaseResponse, DocumentResponse
-from app.services.ingest import ingest_document, delete_document
+from app.schemas.knowledge import KnowledgeBaseCreate, KnowledgeBaseUpdate, KnowledgeBaseResponse, DocumentResponse
+from app.services.ingest import ingest_document, delete_document, delete_knowledge_base
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -31,6 +31,28 @@ async def get_knowledge_base(kb_code: str, db: AsyncSession = Depends(get_db)):
     if not kb:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='知识库不存在')
     return kb
+
+
+@router.patch('/bases/{kb_code}', response_model=KnowledgeBaseResponse)
+async def update_knowledge_base(kb_code: str, kb_in: KnowledgeBaseUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(KnowledgeBase).where(KnowledgeBase.kb_code == kb_code))
+    kb = result.scalar_one_or_none()
+    if not kb:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='知识库不存在')
+    update_data = kb_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(kb, field, value)
+    await db.commit()
+    await db.refresh(kb)
+    return kb
+
+
+@router.delete('/bases/{kb_code}', status_code=status.HTTP_204_NO_CONTENT)
+async def remove_knowledge_base(kb_code: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(KnowledgeBase).where(KnowledgeBase.kb_code == kb_code))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='知识库不存在')
+    await delete_knowledge_base(db, kb_code)
 
 
 @router.post('/bases/{kb_code}/documents', response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)

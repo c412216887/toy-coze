@@ -2,7 +2,7 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import axios, { AxiosError } from 'axios'
 import FormData from 'form-data'
-import type { CreateKnowledgeBaseDto } from './knowledge.dto'
+import type { CreateKnowledgeBaseDto, UpdateKnowledgeBaseDto } from './knowledge.dto'
 
 export interface KnowledgeBase {
   id: string
@@ -54,6 +54,26 @@ export class KnowledgeService {
         `${this.baseUrl}/api/v1/knowledge/bases/${kbCode}`,
       )
       return data
+    } catch (err) {
+      this.handleAxiosError(err)
+    }
+  }
+
+  async updateKnowledgeBase(kbCode: string, dto: UpdateKnowledgeBaseDto): Promise<KnowledgeBase> {
+    try {
+      const { data } = await axios.patch<KnowledgeBase>(
+        `${this.baseUrl}/api/v1/knowledge/bases/${kbCode}`,
+        dto,
+      )
+      return data
+    } catch (err) {
+      this.handleAxiosError(err)
+    }
+  }
+
+  async deleteKnowledgeBase(kbCode: string): Promise<void> {
+    try {
+      await axios.delete(`${this.baseUrl}/api/v1/knowledge/bases/${kbCode}`)
     } catch (err) {
       this.handleAxiosError(err)
     }

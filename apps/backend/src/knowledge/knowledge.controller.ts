@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -16,7 +17,7 @@ import { AuthGuard } from '@nestjs/passport'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger'
 import { KnowledgeService } from './knowledge.service'
-import { CreateKnowledgeBaseDto, SearchKnowledgeDto } from './knowledge.dto'
+import { CreateKnowledgeBaseDto, UpdateKnowledgeBaseDto, SearchKnowledgeDto } from './knowledge.dto'
 
 interface UploadedMulterFile {
   fieldname: string
@@ -42,6 +43,17 @@ export class KnowledgeController {
   @Get('bases/:kbCode')
   getKnowledgeBase(@Param('kbCode') kbCode: string) {
     return this.knowledgeService.getKnowledgeBase(kbCode)
+  }
+
+  @Patch('bases/:kbCode')
+  updateKnowledgeBase(@Param('kbCode') kbCode: string, @Body() dto: UpdateKnowledgeBaseDto) {
+    return this.knowledgeService.updateKnowledgeBase(kbCode, dto)
+  }
+
+  @Delete('bases/:kbCode')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteKnowledgeBase(@Param('kbCode') kbCode: string) {
+    return this.knowledgeService.deleteKnowledgeBase(kbCode)
   }
 
   @Get('bases/:kbCode/documents')
